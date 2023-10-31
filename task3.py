@@ -1,29 +1,25 @@
 from taskexecutor import execute
 
 query = f"""
-    WITH get_active_readers (reader_id) AS (
-        SELECT reader_id FROM (SELECT *, count(reader_id) as count FROM book_reader GROUP BY reader_id)
-        WHERE count = (
-            SELECT count(reader_id) as count FROM book_reader 
-            GROUP BY reader_id
-            ORDER BY count DESC 
-            LIMIT 1
+    WITH 
+    get_readers_books_count AS (
+        SELECT reader_id, count(*) as books_count FROM book_reader
+        GROUP BY reader_id),
+    get_readers_max_books_count AS (
+        SELECT * FROM get_readers_books_count
+        JOIN (SELECT max(books_count) as books_count FROM get_readers_books_count) using(books_count)
+    ),
+    get_books_authors(book_id, authors) AS (
+            SELECT book_id, group_concat(author_name, ', ') FROM book_author
+            JOIN (SELECT * FROM author ORDER BY author_name) using (author_id)
+            GROUP BY book_id
         )
-    )
     
-    SELECT
-        book.title as Название,
-        group_concat(author_name, ', ') as Авторы 
-    FROM (
-        SELECT 
-        DISTINCT book.* 
-        FROM (get_active_readers) as reader
-        NATURAL JOIN book_reader
-        NATURAL JOIN book
-    ) as book
-    JOIN book_author ba on book.book_id = ba.book_id
-    JOIN (SELECT * from author ORDER BY author_name) a on a.author_id = ba.author_id
-    GROUP BY ba.book_id --группируем чтобы собрать авторов  
+    
+    SELECT DISTINCT title as Книга, authors as Авторы FROM book_reader
+    JOIN get_readers_max_books_count using (reader_id)
+    JOIN book using (book_id)
+    JOIN get_books_authors using (book_id)
 """
 
 execute(query)
