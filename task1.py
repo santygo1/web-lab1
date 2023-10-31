@@ -2,14 +2,14 @@ from taskexecutor import execute
 
 query = """
       SELECT 
-        b.title as Название,
-        r.reader_name as Читатель,
+        title as Название,
+        reader_name as Читатель,
         borrow_date as Дата
       FROM book_reader
-      NATURAL JOIN reader as r
-      NATURAL JOIN book as b
+      JOIN reader using(reader_id)
+      JOIN book using(book_id)
       WHERE strftime('%m', borrow_date) = '10'
-      ORDER BY Дата, Читатель, Название
+      ORDER BY borrow_date, reader_name , title DESC 
 """
 
 execute(query)
