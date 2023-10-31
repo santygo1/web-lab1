@@ -9,7 +9,7 @@ query = """
       JOIN reader using(reader_id)
       JOIN book using(book_id)
       WHERE strftime('%m', borrow_date) = '10'
-      ORDER BY borrow_date, reader_name , title DESC 
+      ORDER BY borrow_date, reader_name , title
 """
 
 execute(query)
