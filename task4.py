@@ -2,31 +2,42 @@ from taskexecutor import execute
 
 
 query = f"""
-    WITH get_books_rating AS (
-        SELECT book.*, 
-            (CASE 
-                WHEN book.handle <= 2 THEN  book.handle*2
-                WHEN book.handle > 2 THEN book.handle*4
-                END ) + ifnull(mr.multi_read, 0) * 3 as rating 
-        FROM (
-            SELECT *, count(borrow_date) as handle FROM book_reader
-            GROUP BY book_id
-        ) as book
-        LEFT OUTER JOIN (
-            SELECT book_id, 1 as multi_read FROM book_reader
-            GROUP BY reader_id, book_id
-            HAVING count(borrow_date) > 1
-        ) as mr on mr.book_id = book.book_id
+--     CREATE TABLE IF NOT EXISTS rating(
+--         rating_id INTEGER PRIMARY KEY autoincrement, 
+--         author_id INTEGER REFERENCES author(author_id),
+--         rating INTEGER
+--     );
+--     INSERT INTO rating(author_id, rating) 
+    WITH 
+    -- Книги которые один читатель брал несколько раз, возвращает сколько раз книга была взята одним автором больше чем один раз (x-1)
+    get_books_reader_borrow_repeatedly AS (
+        SELECT book_id, count(book_reader_id) - 1 as repeatedly_borrow_count FROM book_reader
+        GROUP BY book_id, reader_id 
+    ),
+    
+    -- Общее количество взятых экземляров книг для каждой книги
+    get_books_count_reads AS (
+        SELECT book_id, count(book_reader_id) as borrow_count FROM book_reader
+        GROUP BY book_id
     )
-
-    SELECT
-        author_name as Автор,
-        sum(br.rating) as Рейтинг
-    FROM (get_books_rating) as br
-    NATURAL JOIN book 
-    NATURAL JOIN author
-    GROUP BY author.author_name
-    ORDER BY br.rating DESC, author.author_name
+    
+    -- Высчитываем суммарный рейтинг авторов
+    SELECT author_id, sum(author_rating) FROM (
+        -- высчитываем рейтинг авторов для каждой его книги
+        SELECT 
+            author_id,
+            CASE 
+                WHEN borrow_count < 3 THEN borrow_count*2
+                WHEN borrow_count > 2 THEN borrow_count*4
+                END + repeatedly_borrow_count*3 as author_rating
+        FROM book_author
+        JOIN author using(author_id)
+        JOIN book using(book_id)
+        JOIN get_books_reader_borrow_repeatedly using (book_id)
+        JOIN get_books_count_reads using (book_id)
+    )
+    GROUP BY author_id
 """
+
 
 execute(query)
