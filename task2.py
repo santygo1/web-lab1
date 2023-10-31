@@ -1,28 +1,32 @@
 from taskexecutor import execute
 
 query = f"""
-    WITH get_not_returned_books AS (
-        SELECT book_id, COUNT(book_id) as not_returned FROM book
-        NATURAL JOIN (SELECT * FROM book_reader where NOT borrow_date IS NULL AND return_date is NULL)
-        GROUP BY book_id 
-    )
-
+    WITH 
+        get_books_with_total AS (
+            SELECT book.*,(available_numbers + count(book_reader_id)) as total FROM book
+            LEFT JOIN book_reader using (book_id) -- потому, что могут быть книги которые не брали
+            WHERE book_reader_id IS NULL -- чтобы остались книги которые не брали вообще 
+                OR (borrow_date IS NOT NULL AND return_date IS NULL ) -- книги которые взяли но не вернули
+            GROUP BY book_id   
+        ),
+        get_books_authors(book_id, authors) AS (
+            SELECT book_id, group_concat(author_name, ', ') FROM book_author
+            JOIN (SELECT * FROM author ORDER BY author_name) using (author_id)
+            GROUP BY book_id
+        )
+    
     SELECT 
         title as Книга,
-        group_concat(author_name, ', ') as Авторы,
-        genre_name as Жанр, 
+        authors as Авторы,
+        genre_name as Жанр,
         publisher_name as Издательство,
-        (ifnull(nr.not_returned,0) + available_numbers) as Количество 
-    FROM book
+        total as Количество
+    FROM get_books_with_total
+    JOIN get_books_authors using(book_id)
+    JOIN genre using(genre_id)
+    JOIN publisher using(publisher_id)
     
-    LEFT OUTER JOIN (get_not_returned_books) as nr on nr.book_id = book.book_id 
-    NATURAL JOIN genre
-    NATURAL JOIN publisher
-    JOIN book_author ba on book.book_id = ba.book_id
-    JOIN (SELECT * from author ORDER BY author_name ASC) a on a.author_id = ba.author_id
-    
-    GROUP BY ba.book_id --группируем чтобы собрать авторов  
-    ORDER BY title, author_name
+    ORDER BY title, authors
 """
 
 execute(query)
