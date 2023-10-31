@@ -1,8 +1,7 @@
 from taskexecutor import execute
 
 query = """
-    WITH get_book_max_delay (monthno, count)
-    AS ( 
+    WITH get_book_max_delay AS ( 
         SELECT 
             monthno,
             julianday(lead(borrow_date, 1 ) OVER(PARTITION BY monthno ORDER BY borrow_date)) - julianday(borrow_date) as count
