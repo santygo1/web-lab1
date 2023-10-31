@@ -36,7 +36,7 @@ query = f"""
     )
     
     -- Высчитываем суммарный рейтинг авторов
-    SELECT author_id, sum(author_rating) FROM (
+    SELECT author_id, sum(author_rating) as author_rating FROM (
         -- высчитываем рейтинг авторов для каждой его книги
         SELECT 
             author_id,
